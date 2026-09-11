@@ -1,0 +1,6 @@
+bin/
+obj/
+Logs/
+appsettings.local.json
+DeliverySlipApp/appsettings.json
+DeliverySlipApp/MasterData/*.xlsx

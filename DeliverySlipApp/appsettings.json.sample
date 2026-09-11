@@ -1,0 +1,12 @@
+{
+  "JustDb": {
+    "BaseUrl": "https://iw-group.just-db.com",
+    "ApiKey": "YOUR_API_KEY_HERE",
+    "SlipTableName": "table_1785400222",
+    "CylinderTableName": "table_1788918808",
+    "SlipPanelName": "panel_1785400222",
+    "SlipFilterName": "filter_1789019365",
+    "CylinderPanelName": "panel_1788918749",
+    "CylinderFilterName": "filter_1789019750"
+  }
+}
