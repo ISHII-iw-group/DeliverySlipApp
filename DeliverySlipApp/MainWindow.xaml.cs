@@ -35,4 +35,13 @@ public partial class MainWindow : Window
         };
         exportWindow.ShowDialog();
     }
+
+    private void ReferenceEditButton_Click(object sender, RoutedEventArgs e)
+    {
+        var referenceEditWindow = new ReferenceEditWindow
+        {
+            Owner = this,
+        };
+        referenceEditWindow.ShowDialog();
+    }
 }

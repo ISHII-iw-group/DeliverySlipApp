@@ -5,6 +5,9 @@ namespace DeliverySlipApp.Models;
 /// <summary>ボンベ情報明細の1行。</summary>
 public partial class CylinderRow : ObservableObject
 {
+    /// <summary>JustDB上のrecordId。参照・編集画面で読み込んだ既存行にのみ設定される（新規追加行はnull）。</summary>
+    public int? RecordId { get; set; }
+
     /// <summary>ボンベ記号（自由入力・大文字英字のみ）。</summary>
     [ObservableProperty]
     private string symbol = string.Empty;
