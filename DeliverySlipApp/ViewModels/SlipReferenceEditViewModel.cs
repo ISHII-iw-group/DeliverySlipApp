@@ -198,14 +198,19 @@ public partial class SlipReferenceEditViewModel : SlipHeaderViewModelBase
                 ShowError("伝票ヘッダーは更新されましたが、一部のボンベ情報明細の反映に失敗しました。\n\n" +
                     string.Join("\n", failures) +
                     "\n\n内容を確認し、必要であれば再度操作してください。");
+
+                // 一部失敗時は現在のサーバー側の状態を再表示し、内容を確認・修正できるようにする。
+                await LoadBySlipIdAsync(client, loadedSlipId);
             }
             else
             {
                 AppLogger.Info($"伝票の更新が完了しました。slipId={loadedSlipId}");
                 MessageBox.Show("更新が完了しました。", "更新完了", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
 
-            await LoadBySlipIdAsync(client, loadedSlipId);
+                // エラーなく完了した場合は画面をクリアし、続けて次の伝票を検索・修正できるようにする。
+                SlipIdInput = string.Empty;
+                ClearLoadedSlip();
+            }
         }
         catch (Exception ex)
         {
