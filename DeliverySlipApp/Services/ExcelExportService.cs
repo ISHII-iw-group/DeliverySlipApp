@@ -45,6 +45,7 @@ public static class ExcelExportService
         }
 
         var rowIndex = 2;
+        var maxRemarksLineWidth = GetMaxLineWidth("備考");
         foreach (var (fields, deliveryDateValue) in rows)
         {
             var deliveryDate = deliveryDateValue!.Value;
@@ -67,9 +68,11 @@ public static class ExcelExportService
             sheet.Cell(rowIndex, 8).Value = fillingQuantity;
             sheet.Cell(rowIndex, 9).Value = JustDbFieldParser.ExtractDecimalOrZero(GetOrDefault(fields, SlipFields.PressureFillingAmount));
             var remarksCell = sheet.Cell(rowIndex, 10);
-            remarksCell.Value = JustDbFieldParser.ExtractText(GetOrDefault(fields, SlipFields.Remarks));
+            var remarksText = JustDbFieldParser.ExtractText(GetOrDefault(fields, SlipFields.Remarks));
+            remarksCell.Value = remarksText;
             remarksCell.Style.Alignment.WrapText = true;
             remarksCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+            maxRemarksLineWidth = Math.Max(maxRemarksLineWidth, GetMaxLineWidth(remarksText));
             sheet.Cell(rowIndex, 11).Value = JustDbFieldParser.ExtractDecimalOrZero(GetOrDefault(fields, SlipFields.DeliveredQuantity));
             sheet.Cell(rowIndex, 12).Value = JustDbFieldParser.ExtractDecimalOrZero(GetOrDefault(fields, SlipFields.RemainingQuantity));
             sheet.Cell(rowIndex, 13).Value = JustDbFieldParser.ExtractDecimalOrZero(GetOrDefault(fields, SlipFields.InspectionBinRemaining));
@@ -85,13 +88,13 @@ public static class ExcelExportService
 
         sheet.Columns().AdjustToContents();
 
-        // 備考列（J列）はAdjustToContentsが改行を考慮せず1行分の長さで幅を決めてしまうため、
-        // 折り返し表示（WrapText）が機能するよう幅の上限を設ける。
+        // 備考列（J列）はAdjustToContentsが改行を考慮せず1行分の長さで幅を決め、かつ全角文字を
+        // 半角文字と同じ幅として計算してしまうため、実際の表示幅と合わない。
+        // 全角=2/半角=1でカウントした最長行の幅を基準に、独自に列幅を算出する。
+        const double remarksWidthPadding = 2;
+        const double minRemarksColumnWidth = 8.28;
         const double maxRemarksColumnWidth = 40;
-        if (sheet.Column(10).Width > maxRemarksColumnWidth)
-        {
-            sheet.Column(10).Width = maxRemarksColumnWidth;
-        }
+        sheet.Column(10).Width = Math.Clamp(maxRemarksLineWidth + remarksWidthPadding, minRemarksColumnWidth, maxRemarksColumnWidth);
 
         workbook.SaveAs(filePath);
 
@@ -173,4 +176,46 @@ public static class ExcelExportService
 
     private static JsonElement GetOrDefault(Dictionary<string, JsonElement> fields, string key)
         => fields.TryGetValue(key, out var value) ? value : default;
+
+    /// <summary>改行で区切られた各行のうち、最も幅が広い行の幅（半角=1/全角=2換算）を返す。</summary>
+    private static double GetMaxLineWidth(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return 0;
+        }
+
+        var maxWidth = 0.0;
+        foreach (var line in text.Split('\n'))
+        {
+            var width = MeasureTextWidth(line.TrimEnd('\r'));
+            if (width > maxWidth)
+            {
+                maxWidth = width;
+            }
+        }
+
+        return maxWidth;
+    }
+
+    /// <summary>文字列の表示幅を、半角文字=1・全角文字=2として算出する。</summary>
+    private static double MeasureTextWidth(string text)
+    {
+        var width = 0.0;
+        foreach (var c in text)
+        {
+            width += IsFullWidth(c) ? 2 : 1;
+        }
+
+        return width;
+    }
+
+    /// <summary>ひらがな・カタカナ・漢字・全角記号など、表示幅が半角の2倍となる文字かどうかを判定する。</summary>
+    private static bool IsFullWidth(char c)
+        => (c >= 'ᄀ' && c <= 'ᅟ')
+        || (c >= '⺀' && c <= '꓏')
+        || (c >= '가' && c <= '힣')
+        || (c >= '豈' && c <= '﫿')
+        || (c >= '＀' && c <= '｠')
+        || (c >= '￠' && c <= '￦');
 }
