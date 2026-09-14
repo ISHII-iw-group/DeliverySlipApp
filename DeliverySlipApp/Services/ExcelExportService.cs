@@ -45,7 +45,6 @@ public static class ExcelExportService
         }
 
         var rowIndex = 2;
-        var maxRemarksLineWidth = GetMaxLineWidth("備考");
         foreach (var (fields, deliveryDateValue) in rows)
         {
             var deliveryDate = deliveryDateValue!.Value;
@@ -72,7 +71,6 @@ public static class ExcelExportService
             remarksCell.Value = remarksText;
             remarksCell.Style.Alignment.WrapText = true;
             remarksCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
-            maxRemarksLineWidth = Math.Max(maxRemarksLineWidth, GetMaxLineWidth(remarksText));
             sheet.Cell(rowIndex, 11).Value = JustDbFieldParser.ExtractDecimalOrZero(GetOrDefault(fields, SlipFields.DeliveredQuantity));
             sheet.Cell(rowIndex, 12).Value = JustDbFieldParser.ExtractDecimalOrZero(GetOrDefault(fields, SlipFields.RemainingQuantity));
             sheet.Cell(rowIndex, 13).Value = JustDbFieldParser.ExtractDecimalOrZero(GetOrDefault(fields, SlipFields.InspectionBinRemaining));
@@ -86,15 +84,7 @@ public static class ExcelExportService
             rowIndex++;
         }
 
-        sheet.Columns().AdjustToContents();
-
-        // 備考列（J列）はAdjustToContentsが改行を考慮せず1行分の長さで幅を決め、かつ全角文字を
-        // 半角文字と同じ幅として計算してしまうため、実際の表示幅と合わない。
-        // 全角=2/半角=1でカウントした最長行の幅を基準に、独自に列幅を算出する。
-        const double remarksWidthPadding = 2;
-        const double minRemarksColumnWidth = 8.28;
-        const double maxRemarksColumnWidth = 40;
-        sheet.Column(10).Width = Math.Clamp(maxRemarksLineWidth + remarksWidthPadding, minRemarksColumnWidth, maxRemarksColumnWidth);
+        SetColumnWidths(sheet, headers.Length, rowIndex - 1);
 
         workbook.SaveAs(filePath);
 
@@ -162,7 +152,7 @@ public static class ExcelExportService
             rowIndex++;
         }
 
-        sheet.Columns().AdjustToContents();
+        SetColumnWidths(sheet, headers.Length, rowIndex - 1);
         workbook.SaveAs(filePath);
 
         return rows.Count;
@@ -176,6 +166,32 @@ public static class ExcelExportService
 
     private static JsonElement GetOrDefault(Dictionary<string, JsonElement> fields, string key)
         => fields.TryGetValue(key, out var value) ? value : default;
+
+    /// <summary>
+    /// 各列の幅を、ヘッダーおよび全データ行の表示内容（半角=1/全角=2換算、改行は行ごとに分けて判定）を
+    /// 基準に設定する。ClosedXMLのAdjustToContentsは全角文字を半角と同じ幅として計算してしまうため使用しない。
+    /// </summary>
+    private static void SetColumnWidths(IXLWorksheet sheet, int columnCount, int lastRowUsed)
+    {
+        const double widthPadding = 2;
+        const double minColumnWidth = 4;
+        const double maxColumnWidth = 40;
+
+        for (var col = 1; col <= columnCount; col++)
+        {
+            var maxWidth = 0.0;
+            for (var row = 1; row <= lastRowUsed; row++)
+            {
+                var lineWidth = GetMaxLineWidth(sheet.Cell(row, col).GetFormattedString());
+                if (lineWidth > maxWidth)
+                {
+                    maxWidth = lineWidth;
+                }
+            }
+
+            sheet.Column(col).Width = Math.Clamp(maxWidth + widthPadding, minColumnWidth, maxColumnWidth);
+        }
+    }
 
     /// <summary>改行で区切られた各行のうち、最も幅が広い行の幅（半角=1/全角=2換算）を返す。</summary>
     private static double GetMaxLineWidth(string text)
